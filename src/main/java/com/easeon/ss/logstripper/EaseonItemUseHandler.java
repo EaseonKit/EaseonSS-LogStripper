@@ -1,12 +1,13 @@
 package com.easeon.ss.logstripper;
 
-import com.easeon.ss.core.game.EaseonItem;
-import com.easeon.ss.core.game.EaseonSound;
 import com.easeon.ss.core.util.system.EaseonLogger;
+import com.easeon.ss.core.wrapper.EaseonItem;
+import com.easeon.ss.core.wrapper.EaseonPlayer;
+import com.easeon.ss.core.wrapper.EaseonWorld;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.*;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.ActionResult;
@@ -16,35 +17,36 @@ import net.minecraft.world.World;
 public class EaseonItemUseHandler {
     private final static EaseonLogger logger = EaseonLogger.of();
 
-    public static ActionResult onUseItem(PlayerEntity player, World world, Hand hand) {
+    public static ActionResult onUseItem(ServerPlayerEntity playerEntity, World mcWorld, Hand hand) {
+        var world = new EaseonWorld(mcWorld);
         if (world.isClient()) return ActionResult.PASS;
-        if (hand != Hand.MAIN_HAND) {
-            return ActionResult.PASS;
-        }
+        if (hand != Hand.MAIN_HAND) return ActionResult.PASS;
+
+        var player = new EaseonPlayer(playerEntity);
 
         var mainHand = player.getMainHandStack();
         var offHand = player.getOffHandStack();
 
         // 도끼와 통나무 확인
-        var mainIsAxe = mainHand.getItem() instanceof AxeItem;
-        var offIsAxe = offHand.getItem() instanceof AxeItem;
+        var mainIsAxe = mainHand.of(AxeItem.class);
+        var offIsAxe = offHand.of(AxeItem.class);
         var mainIsLog = isStrippableLog(mainHand);
         var offIsLog = isStrippableLog(offHand);
 
         // 한 손에 도끼, 다른 손에 통나무가 있는지 확인
         if ((mainIsAxe && offIsLog) || (offIsAxe && mainIsLog)) {
-            ItemStack axeStack = mainIsAxe ? mainHand : offHand;
-            ItemStack logStack = mainIsLog ? mainHand : offHand;
+            var axeStack = mainIsAxe ? mainHand : offHand;
+            var logStack = mainIsLog ? mainHand : offHand;
 
-            Block strippedLog = getStrippedLog(logStack.getItem());
+            var strippedLog = getStrippedLog(logStack);
             if (strippedLog == null) return ActionResult.PASS;
 
-            EaseonItem.damage(player, axeStack);
-            EaseonItem.giveOrDropItem(player, strippedLog.asItem());
+            axeStack.damage(player);
+            player.giveOrDropItem(strippedLog);
 
             // 통나무 1개 소모
-            logStack.decrement(1);
-            EaseonSound.playAll(world, player, SoundEvents.ITEM_AXE_STRIP, SoundCategory.PLAYERS);
+            player.removeItem(logStack);
+            world.playSound(player, SoundEvents.ITEM_AXE_STRIP, SoundCategory.PLAYERS);
             if (mainIsAxe)
                 player.swingHand(Hand.MAIN_HAND, true);
             else
@@ -56,48 +58,53 @@ public class EaseonItemUseHandler {
         return ActionResult.PASS;
     }
 
-    private static boolean isStrippableLog(ItemStack stack) {
-        Item item = stack.getItem();
-        return item == Items.OAK_LOG || item == Items.OAK_WOOD ||
-                item == Items.BIRCH_LOG || item == Items.BIRCH_WOOD ||
-                item == Items.ACACIA_LOG || item == Items.ACACIA_WOOD ||
-                item == Items.MANGROVE_LOG || item == Items.MANGROVE_WOOD ||
-                item == Items.SPRUCE_LOG || item == Items.SPRUCE_WOOD ||
-                item == Items.JUNGLE_LOG || item == Items.JUNGLE_WOOD ||
-                item == Items.DARK_OAK_LOG || item == Items.DARK_OAK_WOOD ||
-                item == Items.PALE_OAK_LOG || item == Items.PALE_OAK_WOOD ||
-                item == Items.CHERRY_LOG || item == Items.CHERRY_WOOD ||
-                item == Items.CRIMSON_STEM || item == Items.WARPED_STEM ||
-                item == Items.CRIMSON_HYPHAE || item == Items.WARPED_HYPHAE ||
-                item == Items.BAMBOO_BLOCK;
+    private static boolean isStrippableLog(EaseonItem item) {
+        return item.of(
+            Items.OAK_LOG, Items.OAK_WOOD,
+            Items.BIRCH_LOG, Items.BIRCH_WOOD,
+            Items.ACACIA_LOG, Items.ACACIA_WOOD,
+            Items.MANGROVE_LOG, Items.MANGROVE_WOOD,
+            Items.SPRUCE_LOG, Items.SPRUCE_WOOD,
+            Items.JUNGLE_LOG, Items.JUNGLE_WOOD,
+            Items.DARK_OAK_LOG, Items.DARK_OAK_WOOD,
+            Items.PALE_OAK_LOG, Items.PALE_OAK_WOOD,
+            Items.CHERRY_LOG, Items.CHERRY_WOOD,
+            Items.CRIMSON_STEM, Items.WARPED_STEM,
+            Items.CRIMSON_HYPHAE, Items.WARPED_HYPHAE,
+            Items.BAMBOO_BLOCK
+        );
     }
 
-    private static Block getStrippedLog(Item logItem) {
-        if (logItem == Items.OAK_LOG) return Blocks.STRIPPED_OAK_LOG;
-        if (logItem == Items.SPRUCE_LOG) return Blocks.STRIPPED_SPRUCE_LOG;
-        if (logItem == Items.BIRCH_LOG) return Blocks.STRIPPED_BIRCH_LOG;
-        if (logItem == Items.JUNGLE_LOG) return Blocks.STRIPPED_JUNGLE_LOG;
-        if (logItem == Items.ACACIA_LOG) return Blocks.STRIPPED_ACACIA_LOG;
-        if (logItem == Items.DARK_OAK_LOG) return Blocks.STRIPPED_DARK_OAK_LOG;
-        if (logItem == Items.MANGROVE_LOG) return Blocks.STRIPPED_MANGROVE_LOG;
-        if (logItem == Items.CHERRY_LOG) return Blocks.STRIPPED_CHERRY_LOG;
-        if (logItem == Items.CRIMSON_STEM) return Blocks.STRIPPED_CRIMSON_STEM;
-        if (logItem == Items.WARPED_STEM) return Blocks.STRIPPED_WARPED_STEM;
-        if (logItem == Items.PALE_OAK_LOG) return Blocks.STRIPPED_PALE_OAK_LOG;
-        if (logItem == Items.BAMBOO_BLOCK) return Blocks.STRIPPED_BAMBOO_BLOCK;
+    private static EaseonItem getStrippedLog(EaseonItem item) {
+        Block stripped = null;
 
-        if (logItem == Items.OAK_WOOD) return Blocks.STRIPPED_OAK_WOOD;
-        if (logItem == Items.SPRUCE_WOOD) return Blocks.STRIPPED_SPRUCE_WOOD;
-        if (logItem == Items.BIRCH_WOOD) return Blocks.STRIPPED_BIRCH_WOOD;
-        if (logItem == Items.JUNGLE_WOOD) return Blocks.STRIPPED_JUNGLE_WOOD;
-        if (logItem == Items.ACACIA_WOOD) return Blocks.STRIPPED_ACACIA_WOOD;
-        if (logItem == Items.DARK_OAK_WOOD) return Blocks.STRIPPED_DARK_OAK_WOOD;
-        if (logItem == Items.MANGROVE_WOOD) return Blocks.STRIPPED_MANGROVE_WOOD;
-        if (logItem == Items.CHERRY_WOOD) return Blocks.STRIPPED_CHERRY_WOOD;
-        if (logItem == Items.PALE_OAK_WOOD) return Blocks.STRIPPED_PALE_OAK_WOOD;
-        if (logItem == Items.CRIMSON_HYPHAE) return Blocks.STRIPPED_CRIMSON_HYPHAE;
-        if (logItem == Items.WARPED_HYPHAE) return Blocks.STRIPPED_WARPED_HYPHAE;
+        if (item.of(Items.OAK_LOG)) stripped = Blocks.STRIPPED_OAK_LOG;
+        else if (item.of(Items.SPRUCE_LOG)) stripped = Blocks.STRIPPED_SPRUCE_LOG;
+        else if (item.of(Items.BIRCH_LOG)) stripped = Blocks.STRIPPED_BIRCH_LOG;
+        else if (item.of(Items.JUNGLE_LOG)) stripped = Blocks.STRIPPED_JUNGLE_LOG;
+        else if (item.of(Items.ACACIA_LOG)) stripped = Blocks.STRIPPED_ACACIA_LOG;
+        else if (item.of(Items.DARK_OAK_LOG)) stripped = Blocks.STRIPPED_DARK_OAK_LOG;
+        else if (item.of(Items.MANGROVE_LOG)) stripped = Blocks.STRIPPED_MANGROVE_LOG;
+        else if (item.of(Items.CHERRY_LOG)) stripped = Blocks.STRIPPED_CHERRY_LOG;
+        else if (item.of(Items.CRIMSON_STEM)) stripped = Blocks.STRIPPED_CRIMSON_STEM;
+        else if (item.of(Items.WARPED_STEM)) stripped = Blocks.STRIPPED_WARPED_STEM;
+        else if (item.of(Items.PALE_OAK_LOG)) stripped = Blocks.STRIPPED_PALE_OAK_LOG;
+        else if (item.of(Items.BAMBOO_BLOCK)) stripped = Blocks.STRIPPED_BAMBOO_BLOCK;
 
-        return null;
+        else if (item.of(Items.OAK_WOOD)) stripped = Blocks.STRIPPED_OAK_WOOD;
+        else if (item.of(Items.SPRUCE_WOOD)) stripped = Blocks.STRIPPED_SPRUCE_WOOD;
+        else if (item.of(Items.BIRCH_WOOD)) stripped = Blocks.STRIPPED_BIRCH_WOOD;
+        else if (item.of(Items.JUNGLE_WOOD)) stripped = Blocks.STRIPPED_JUNGLE_WOOD;
+        else if (item.of(Items.ACACIA_WOOD)) stripped = Blocks.STRIPPED_ACACIA_WOOD;
+        else if (item.of(Items.DARK_OAK_WOOD)) stripped = Blocks.STRIPPED_DARK_OAK_WOOD;
+        else if (item.of(Items.MANGROVE_WOOD)) stripped = Blocks.STRIPPED_MANGROVE_WOOD;
+        else if (item.of(Items.CHERRY_WOOD)) stripped = Blocks.STRIPPED_CHERRY_WOOD;
+        else if (item.of(Items.PALE_OAK_WOOD)) stripped = Blocks.STRIPPED_PALE_OAK_WOOD;
+        else if (item.of(Items.CRIMSON_HYPHAE)) stripped = Blocks.STRIPPED_CRIMSON_HYPHAE;
+        else if (item.of(Items.WARPED_HYPHAE)) stripped = Blocks.STRIPPED_WARPED_HYPHAE;
+
+        return stripped != null ? new EaseonItem(new ItemStack(stripped.asItem())) : null;
     }
+
+
 }
