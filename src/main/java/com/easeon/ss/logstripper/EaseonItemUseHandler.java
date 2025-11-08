@@ -42,15 +42,15 @@ public class EaseonItemUseHandler {
             if (strippedLog == null) return ActionResult.PASS;
 
             axeStack.damage(player);
-            player.giveOrDropItem(strippedLog);
+            player.giveOrDropItem(strippedLog, 1);
 
             // 통나무 1개 소모
-            player.removeItem(logStack);
-            world.playSound(player, SoundEvents.ITEM_AXE_STRIP, SoundCategory.PLAYERS);
+            player.removeItem(logStack, 1);
+            world.playSound(player.getPos(), SoundEvents.ITEM_AXE_STRIP, SoundCategory.PLAYERS, 1.0f);
             if (mainIsAxe)
-                player.swingHand(Hand.MAIN_HAND, true);
+                player.swingHand(Hand.MAIN_HAND);
             else
-                player.swingHand(Hand.OFF_HAND, true);
+                player.swingHand(Hand.OFF_HAND);
 
             return ActionResult.SUCCESS;
         }
