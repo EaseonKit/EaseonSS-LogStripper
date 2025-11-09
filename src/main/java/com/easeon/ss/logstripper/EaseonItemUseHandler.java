@@ -30,21 +30,17 @@ public class EaseonItemUseHandler {
         // 도끼와 통나무 확인
         var mainIsAxe = mainHand.of(AxeItem.class);
         var offIsAxe = offHand.of(AxeItem.class);
-        var mainIsLog = isStrippableLog(mainHand);
-        var offIsLog = isStrippableLog(offHand);
+        var mainIsLog = getStrippedLog(mainHand);
+        var offIsLog = getStrippedLog(offHand);
 
         // 한 손에 도끼, 다른 손에 통나무가 있는지 확인
-        if ((mainIsAxe && offIsLog) || (offIsAxe && mainIsLog)) {
+        if ((mainIsAxe && offIsLog != null) || (offIsAxe && mainIsLog != null)) {
             var axeStack = mainIsAxe ? mainHand : offHand;
-            var logStack = mainIsLog ? mainHand : offHand;
-
-            var strippedLog = getStrippedLog(logStack);
-            if (strippedLog == null) return ActionResult.PASS;
+            var logStack = mainIsAxe ? offHand : mainHand;
+            var strippedLog = mainIsAxe ? offIsLog : mainIsLog;
 
             axeStack.damage(player);
             player.giveOrDropItem(strippedLog, 1);
-
-            // 통나무 1개 소모
             player.removeItem(logStack, 1);
             world.playSound(player.getPos(), SoundEvents.ITEM_AXE_STRIP, SoundCategory.PLAYERS, 1.0f);
             if (mainIsAxe)
@@ -56,23 +52,6 @@ public class EaseonItemUseHandler {
         }
 
         return ActionResult.PASS;
-    }
-
-    private static boolean isStrippableLog(EaseonItem item) {
-        return item.of(
-            Items.OAK_LOG, Items.OAK_WOOD,
-            Items.BIRCH_LOG, Items.BIRCH_WOOD,
-            Items.ACACIA_LOG, Items.ACACIA_WOOD,
-            Items.MANGROVE_LOG, Items.MANGROVE_WOOD,
-            Items.SPRUCE_LOG, Items.SPRUCE_WOOD,
-            Items.JUNGLE_LOG, Items.JUNGLE_WOOD,
-            Items.DARK_OAK_LOG, Items.DARK_OAK_WOOD,
-            Items.PALE_OAK_LOG, Items.PALE_OAK_WOOD,
-            Items.CHERRY_LOG, Items.CHERRY_WOOD,
-            Items.CRIMSON_STEM, Items.WARPED_STEM,
-            Items.CRIMSON_HYPHAE, Items.WARPED_HYPHAE,
-            Items.BAMBOO_BLOCK
-        );
     }
 
     private static EaseonItem getStrippedLog(EaseonItem item) {
@@ -105,6 +84,4 @@ public class EaseonItemUseHandler {
 
         return stripped != null ? new EaseonItem(new ItemStack(stripped.asItem())) : null;
     }
-
-
 }
